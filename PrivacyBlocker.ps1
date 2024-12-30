@@ -237,14 +237,15 @@ $domains = @(
 
     # Google
     "id.google.com",
-    "jnn-pa.googleapis.com",
+    # fix youtube - https://gbatemp.net/threads/youtube-gets-stuck-at-59-seconds.664572/
+    # "jnn-pa.googleapis.com",
+    # "imasdk.googleapis.com",
     "pagead2.googlesyndication.com",
     "fundingchoicesmessages.google.com",
     "contributor.google.com",
     "www.googletagmanager.com",
     "securepubads.g.doubleclick.net",
     "pubads.g.doubleclick.net",
-    "imasdk.googleapis.com",
     "tpc.googlesyndication.com",
     "www.google-analytics.com",
 
