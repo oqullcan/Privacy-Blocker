@@ -1,36 +1,31 @@
 # Privacy-Blocker.ps1
 # This script applies comprehensive privacy-focused configurations on Windows systems.
-# It performs registry modifications, disables unnecessary services,
-# blocks telemetry via the hosts file, configures firewall rules,
-# and adds advanced privacy enhancements.
 
-# ----------------------
 # Utility Functions
-# ----------------------
 function Write-Log {
     param([string]$message)
     Write-Output "[Privacy-Blocker] $message"
 }
 
-# Error Handling Wrapper
+function Format-ErrorMessage {
+    param([string]$ErrorMessage, [string]$Detail)
+    return "$ErrorMessage - $Detail"
+}
+
 function Safe-Execute {
-    param(
-        [ScriptBlock]$Code,
-        [string]$ErrorMessage
-    )
-    try {
-        & $Code
-    } catch {
-        Write-Log "$ErrorMessage - $($_.Exception.Message)"
+    param([ScriptBlock]$Code, [string]$ErrorMessage)
+    try { & $Code } catch {
+        if ($_.Exception -is [System.UnauthorizedAccessException]) {
+            Write-Log "Unauthorized access: $ErrorMessage"
+        } else {
+            Write-Log (Format-ErrorMessage $ErrorMessage $($_.Exception.Message))
+        }
     }
 }
 
-# ----------------------
 # 1. Registry Settings
-# ----------------------
 function Apply-RegistrySettings {
     Write-Log "Applying registry settings..."
-    
     $registryChanges = @(
         @{ Path = "HKLM:\Software\Policies\Microsoft\Windows\AppCompat"; Name = "DisableEngine"; Value = 1 },
         @{ Path = "HKLM:\Software\Policies\Microsoft\Windows\AppCompat"; Name = "AITEnable"; Value = 0 },
@@ -81,47 +76,61 @@ function Apply-RegistrySettings {
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting"; Name = "DontShowUI"; Value = 1 },
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Consent"; Name = "0"; Value = "" }
     )
-    
+    $jobs = @()
     foreach ($reg in $registryChanges) {
-        Safe-Execute {
-            if ($reg.RemoveKey) {
-                Remove-Item -Path $reg.Path -Recurse -Force
-            } else {
-                if (-not (Test-Path $reg.Path)) {
-                    New-Item -Path $reg.Path -Force | Out-Null
+        $jobs += Start-Job -ScriptBlock {
+            param($reg)
+            Safe-Execute {
+                if ($reg.RemoveKey) {
+                    Remove-Item -Path $reg.Path -Recurse -Force
+                } else {
+                    if (-not (Test-Path $reg.Path)) {
+                        New-Item -Path $reg.Path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $reg.Path -Name $reg.Name -Value $reg.Value
                 }
-                Set-ItemProperty -Path $reg.Path -Name $reg.Name -Value $reg.Value
-            }
-        } "Failed to apply registry setting for $($reg.Name)"
+            } "Failed to apply registry setting for $($reg.Name)"
+        } -ArgumentList $reg
     }
+    
+    # Check for errors without waiting
+    $jobs | ForEach-Object {
+        if ($_.State -eq 'Failed') {
+            Write-Log "Job failed for registry setting: $($_.Command)"
+            Receive-Job -Job $_ -Keep
+        } elseif ($_.State -eq 'Completed') {
+            Write-Log "Job completed successfully for registry setting: $($_.Command)"
+            Receive-Job -Job $_
+        } else {
+            Write-Log "Job is still running for registry setting: $($_.Command)"
+        }
+    }
+    
+    Write-Log "Registry settings applied successfully."
 }
 
-# ----------------------
 # 2. Disabling Services
-# ----------------------
 function Disable-Services {
     Write-Log "Disabling unnecessary services..."
-    
     $services = @("DiagTrack", "dmwappushsvc", "RemoteRegistry", "WaaSMedicSvc", "DoSvc", "RemoteAccess", "SessionEnv", "TermService")
-    
     foreach ($service in $services) {
         Safe-Execute {
             if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
                 Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
-                Set-Service -Name $service -StartupType Disabled
+                # Use sc.exe to change the startup type
+                Start-Process -FilePath "sc.exe" -ArgumentList "config $service start= disabled" -NoNewWindow -Wait
             }
         } "Failed to disable service: $service"
     }
+    Write-Log "Services disabled successfully."
 }
 
-# ----------------------
 # 3. Blocking Telemetry via Hosts File
-# ----------------------
 function Block-TelemetryHosts {
     Write-Log "Modifying the hosts file to block telemetry domains..."
-    
     $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
     $telemetryDomains = @(
+        "0.0.0.0 settings-win.data.microsoft.com",
         "0.0.0.0 browser.pipe.aria.microsoft.com",
         "0.0.0.0 dmd.metaservices.microsoft.com",
         "0.0.0.0 ris.api.iris.microsoft.com",
@@ -177,7 +186,6 @@ function Block-TelemetryHosts {
         "0.0.0.0 nw-umwatson.events.data.microsoft.com",
         "0.0.0.0 mobile.events.data.microsoft.com"
     )
-    
     foreach ($domain in $telemetryDomains) {
         Safe-Execute {
             if (-not (Select-String -Path $hostsPath -Pattern ([regex]::Escape($domain)) -Quiet)) {
@@ -187,79 +195,36 @@ function Block-TelemetryHosts {
     }
 }
 
-# ----------------------
 # 4. Firewall Rules
-# ----------------------
 function Add-FirewallRules {
     Write-Log "Adding firewall rules to block telemetry IPs..."
-    
     $telemetryIPs = @(
-        "20.42.65.90",
-        "20.234.120.54",
-        "104.208.16.91",
-        "20.118.138.130",
-        "65.52.100.9",
-        "20.189.173.16",
-        "20.42.65.92",
-        "20.54.232.160",
-        "20.44.10.123",
-        "104.208.16.93",
-        "52.168.117.173",
-        "20.209.184.65",
-        "20.60.241.65",
-        "20.60.225.129",
-        "20.209.154.161",
-        "20.150.87.132",
-        "20.50.201.194",
-        "52.168.112.67",
-        "13.70.79.200",
-        "20.189.173.27",
-        "52.168.117.171",
-        "13.89.178.26",
-        "20.50.201.195",
-        "13.69.239.78",
-        "104.46.162.225",
-        "40.79.173.41",
-        "51.104.15.252",
-        "20.189.173.8",
-        "20.189.173.14",
-        "20.140.200.208",
-        "52.245.136.44",
-        "20.192.184.194",
-        "104.211.81.232",
-        "40.79.189.59",
-        "40.79.197.35",
-        "52.32.227.103",
-        "20.50.88.235",
-        "13.107.5.88",
-        "13.89.179.12",
-        "20.42.73.26"
+        "20.42.65.90", "20.234.120.54", "104.208.16.91", "20.118.138.130", "65.52.100.9", "20.189.173.16",
+        "20.42.65.92", "20.54.232.160", "20.44.10.123", "104.208.16.93", "52.168.117.173", "20.209.184.65",
+        "20.60.241.65", "20.60.225.129", "20.209.154.161", "20.150.87.132", "20.50.201.194", "52.168.112.67",
+        "13.70.79.200", "20.189.173.27", "52.168.117.171", "13.89.178.26", "20.50.201.195", "13.69.239.78",
+        "104.46.162.225", "40.79.173.41", "51.104.15.252", "20.189.173.8", "20.189.173.14", "20.140.200.208",
+        "52.245.136.44", "20.192.184.194", "104.211.81.232", "40.79.189.59", "40.79.197.35", "52.32.227.103",
+        "20.50.88.235", "13.107.5.88", "13.89.179.12", "20.42.73.26"
     )
-    
     foreach ($ip in $telemetryIPs) {
         Safe-Execute {
             if ($ip -match '^\d{1,3}(\.\d{1,3}){3}$') {
-                New-NetFirewallRule -DisplayName "Block Telemetry - $ip" -Direction Outbound -RemoteAddress $ip -Action Block -Profile Any -Enabled True
-                New-NetFirewallRule -DisplayName "Block Telemetry (Inbound) - $ip" -Direction Inbound -RemoteAddress $ip -Action Block -Profile Any -Enabled True
+                New-NetFirewallRule -DisplayName "Privacy-Blocker Telemetry - $ip" -Direction Outbound -RemoteAddress $ip -Action Block -Profile Any -Enabled True
+                New-NetFirewallRule -DisplayName "Privacy-Blocker Telemetry (Inbound) - $ip" -Direction Inbound -RemoteAddress $ip -Action Block -Profile Any -Enabled True
             } else {
                 Write-Log "Invalid IP address: $ip"
             }
         } "Failed to add firewall rule for IP: $ip"
     }
-    
-    Safe-Execute {
-        Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow
-    } "Failed to harden firewall settings"
+    Safe-Execute { Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow } "Failed to harden firewall settings"
 }
 
-# ----------------------
 # 5. Set Secure DNS (DNS Leak Protection)
-# ----------------------
 function Set-SecureDNS {
     Write-Log "Configuring secure DNS settings..."
     $dnsServers = @("9.9.9.9", "149.112.112.112")
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface }
-    
     foreach ($adapter in $adapters) {
         Safe-Execute {
             Set-DnsClientServerAddress -InterfaceIndex $adapter.IfIndex -ServerAddresses $dnsServers
@@ -268,9 +233,7 @@ function Set-SecureDNS {
     }
 }
 
-# ----------------------
 # Main Execution
-# ----------------------
 Apply-RegistrySettings
 Disable-Services
 Block-TelemetryHosts
