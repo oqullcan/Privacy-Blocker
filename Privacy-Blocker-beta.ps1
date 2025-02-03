@@ -1,6 +1,8 @@
 # Privacy-Blocker.ps1
 # This script applies comprehensive privacy-focused configurations on Windows systems.
 
+# credit: revision-team
+
 # Utility Functions
 function Write-Log {
     param([string]$message)
@@ -76,34 +78,13 @@ function Apply-RegistrySettings {
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting"; Name = "DontShowUI"; Value = 1 },
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Consent"; Name = "0"; Value = "" }
     )
-    $jobs = @()
     foreach ($reg in $registryChanges) {
-        $jobs += Start-Job -ScriptBlock {
-            param($reg)
-            Safe-Execute {
-                if ($reg.RemoveKey) {
-                    Remove-Item -Path $reg.Path -Recurse -Force
-                } else {
-                    if (-not (Test-Path $reg.Path)) {
-                        New-Item -Path $reg.Path -Force | Out-Null
-                    }
-                    Set-ItemProperty -Path $reg.Path -Name $reg.Name -Value $reg.Value
-                }
-            } "Failed to apply registry setting for $($reg.Name)"
-        } -ArgumentList $reg
-    }
-    
-    # Check for errors without waiting
-    $jobs | ForEach-Object {
-        if ($_.State -eq 'Failed') {
-            Write-Log "Job failed for registry setting: $($_.Command)"
-            Receive-Job -Job $_ -Keep
-        } elseif ($_.State -eq 'Completed') {
-            Write-Log "Job completed successfully for registry setting: $($_.Command)"
-            Receive-Job -Job $_
-        } else {
-            Write-Log "Job is still running for registry setting: $($_.Command)"
-        }
+        Safe-Execute {
+            if (-not (Test-Path $reg.Path)) {
+                New-Item -Path $reg.Path -Force | Out-Null
+            }
+            Set-ItemProperty -Path $reg.Path -Name $reg.Name -Value $reg.Value
+        } "Failed to apply registry setting for $($reg.Name)"
     }
     
     Write-Log "Registry settings applied successfully."
