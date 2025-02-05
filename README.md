@@ -18,7 +18,7 @@
 2. **Set script execution permissions:**
 
 ```
-powershell Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 ```
 
 3. **Run the script:**
