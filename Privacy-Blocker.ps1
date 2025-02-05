@@ -280,15 +280,47 @@ function Add-FirewallRules {
 }
 
 function Set-SecureDNS {
-    Write-Log "Configuring secure DNS settings..."
+    Write-Log "Configuring secure DNS settings with Quad9 and DoH..."
     
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface }
     
     foreach ($adapter in $adapters) {
         Safe-Execute -Code {
+            # Set Quad9 DNS servers
             Set-DnsClientServerAddress -InterfaceIndex $adapter.IfIndex -ServerAddresses $SECURE_DNS_SERVERS
+            
+            # Force enable DNS over HTTPS via registry
+            $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\InterfaceSpecificParameters\$($adapter.InterfaceGuid)\DohInterfaceSettings"
+            
+            # Create or update registry settings
+            if (-not (Test-Path $regPath)) {
+                New-Item -Path $regPath -Force | Out-Null
+            }
+            
+            # Set DoHFlags as DWord
+            Set-ItemProperty -Path $regPath -Name 'DoHFlags' -Value 1 -Type DWord -Force
+            
+            # Set string values as String type
+            Set-ItemProperty -Path $regPath -Name 'DoHServerAddress' -Value '9.9.9.9' -Type String -Force
+            Set-ItemProperty -Path $regPath -Name 'DoHTemplate' -Value 'https://dns.quad9.net/dns-query' -Type String -Force
+            
+            # Force refresh DNS settings with error handling
+            try {
+                Stop-Service -Name Dnscache -Force -ErrorAction Stop
+                Start-Service -Name Dnscache -ErrorAction Stop
+            } catch {
+                Write-Log "Warning: Could not restart DNS Client service. Changes may require a system restart to take effect." -level "WARNING"
+            }
+            
         } -ErrorMessage "Failed to configure DNS for adapter: $($adapter.Name)" -Context "DNS"
     }
+}
+#endregion
+
+function Flush-DNSCache {
+    Write-Log "Flushing DNS cache..."
+    $null = ipconfig /flushdns 2>&1 | Out-Null
+    Write-Log "DNS cache flushed successfully."
 }
 #endregion
 
@@ -301,6 +333,7 @@ try {
     Block-TelemetryHosts
     Add-FirewallRules
     Set-SecureDNS
+    Flush-DNSCache
     
     Write-Log "Privacy hardening completed successfully."
 } catch {
