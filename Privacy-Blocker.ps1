@@ -105,14 +105,12 @@ function Disable-Services {
     }
     Write-Log "Services disabled successfully."
 }
-
 # 3. Blocking Telemetry via Hosts File
 function Block-TelemetryHosts {
     Write-Log "Modifying the hosts file to block telemetry domains..."
     $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
     $telemetryDomains = @(
         "0.0.0.0 settings-win.data.microsoft.com",
-        "0.0.0.0 settings.data.microsoft.com",
         "0.0.0.0 browser.pipe.aria.microsoft.com",
         "0.0.0.0 dmd.metaservices.microsoft.com",
         "0.0.0.0 ris.api.iris.microsoft.com",
@@ -166,15 +164,13 @@ function Block-TelemetryHosts {
         "0.0.0.0 az667904.vo.msecnd.net",
         "0.0.0.0 scus-breeziest-in.cloudapp.net",
         "0.0.0.0 nw-umwatson.events.data.microsoft.com",
-        "0.0.0.0 mobile.events.data.microsoft.com",
-        "0.0.0.0 oca.telemetry.microsoft.com",
-        "0.0.0.0 ca.microsoft.com",
-        "0.0.0.0 kmwatsonc.events.data.microsoft.com"
+        "0.0.0.0 mobile.events.data.microsoft.com"
     )
     foreach ($domain in $telemetryDomains) {
         Safe-Execute {
-            if (-not (Select-String -Path $hostsPath -Pattern ([regex]::Escape($domain)) -Quiet)) {
-                Add-Content -Path $hostsPath -Value $domain
+            $hostsContent = Get-Content -Path $hostsPath -ErrorAction SilentlyContinue
+            if (-not ($hostsContent -like "*$domain*")) {
+                Add-Content -Path $hostsPath -Value $domain -ErrorAction SilentlyContinue
             }
         } "Failed to block domain: $domain"
     }
