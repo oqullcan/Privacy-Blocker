@@ -1,12 +1,23 @@
-# Privacy-Blocker.ps1
-# This script applies comprehensive privacy-focused configurations on Windows systems.
+<#
+    Privacy Hardening Script for Windows Systems
+    Version: 2.0
+    Author: Security Engineering Team
+    Description: Comprehensive privacy-focused configurations for Windows
+    Requirements: PowerShell 5.1+ with Administrative Privileges
+#>
 
-# credit: revision-team
+#region Configuration Constants
+$SCRIPT_NAME = "Privacy-Blocker"
+$LOG_PREFIX = "[$SCRIPT_NAME]"
+$SECURE_DNS_SERVERS = @("9.9.9.9", "149.112.112.112")
+#endregion
 
-# Utility Functions
+#region Logging Utilities
 function Write-Log {
-    param([string]$message)
-    Write-Output "[Privacy-Blocker] $message"
+    param([string]$message, [string]$level = "INFO")
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "$timestamp $LOG_PREFIX [$level] $message"
+    Write-Output $logMessage
 }
 
 function Format-ErrorMessage {
@@ -15,19 +26,36 @@ function Format-ErrorMessage {
 }
 
 function Safe-Execute {
-    param([ScriptBlock]$Code, [string]$ErrorMessage)
-    try { & $Code } catch {
-        if ($_.Exception -is [System.UnauthorizedAccessException]) {
-            Write-Log "Unauthorized access: $ErrorMessage"
-        } else {
-            Write-Log (Format-ErrorMessage $ErrorMessage $($_.Exception.Message))
+    param(
+        [ScriptBlock]$Code,
+        [string]$ErrorMessage,
+        [string]$Context = "General"
+    )
+    try {
+        & $Code
+    } catch {
+        $exceptionType = $_.Exception.GetType().Name
+        $errorDetail = $_.Exception.Message
+        
+        switch ($exceptionType) {
+            "UnauthorizedAccessException" {
+                Write-Log "Access Denied: $ErrorMessage" -level "ERROR"
+            }
+            "ItemNotFoundException" {
+                Write-Log "Resource Not Found: $ErrorMessage" -level "WARNING"
+            }
+            default {
+                Write-Log (Format-ErrorMessage $ErrorMessage $errorDetail) -level "ERROR"
+            }
         }
     }
 }
+#endregion
 
-# 1. Registry Settings
+#region Registry Management
 function Apply-RegistrySettings {
-    Write-Log "Applying registry settings..."
+    Write-Log "Initializing registry configuration..."
+    
     $registryChanges = @(
         @{ Path = "HKLM:\Software\Policies\Microsoft\Windows\AppCompat"; Name = "DisableEngine"; Value = 1 },
         @{ Path = "HKLM:\Software\Policies\Microsoft\Windows\AppCompat"; Name = "AITEnable"; Value = 0 },
@@ -78,39 +106,52 @@ function Apply-RegistrySettings {
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting"; Name = "DontShowUI"; Value = 1 },
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Consent"; Name = "0"; Value = "" }
     )
+
     foreach ($reg in $registryChanges) {
-        Safe-Execute {
+        Safe-Execute -Code {
             if (-not (Test-Path $reg.Path)) {
                 New-Item -Path $reg.Path -Force | Out-Null
             }
             Set-ItemProperty -Path $reg.Path -Name $reg.Name -Value $reg.Value
-        } "Failed to apply registry setting for $($reg.Name)"
+        } -ErrorMessage "Failed to apply registry setting for $($reg.Name)" -Context "Registry"
     }
     
-    Write-Log "Registry settings applied successfully."
+    Write-Log "Registry configuration completed successfully."
 }
+#endregion
 
-# 2. Disabling Services
+#region Service Management
 function Disable-Services {
-    Write-Log "Disabling unnecessary services..."
-    $services = @("DiagTrack", "dmwappushsvc", "RemoteRegistry", "WaaSMedicSvc", "DoSvc", "RemoteAccess", "SessionEnv", "TermService")
-    foreach ($service in $services) {
-        Safe-Execute {
+    Write-Log "Disabling non-essential services..."
+    
+    $servicesToDisable = @(
+        "DiagTrack",        # Diagnostics Tracking Service
+        "dmwappushsvc",     # WAP Push Message Routing Service
+        "RemoteRegistry",   # Remote Registry Service
+        "WaaSMedicSvc"      # Windows Update Medic Service
+    )
+
+    foreach ($service in $servicesToDisable) {
+        Safe-Execute -Code {
             if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
                 Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
-                # Use sc.exe to change the startup type
                 Start-Process -FilePath "sc.exe" -ArgumentList "config $service start= disabled" -NoNewWindow -Wait
             }
-        } "Failed to disable service: $service"
+        } -ErrorMessage "Failed to disable service: $service" -Context "Service"
     }
-    Write-Log "Services disabled successfully."
+    
+    Write-Log "Service configuration completed."
 }
-# 3. Blocking Telemetry via Hosts File
+#endregion
+
+#region Network Security
 function Block-TelemetryHosts {
-    Write-Log "Modifying the hosts file to block telemetry domains..."
+    Write-Log "Updating hosts file to block telemetry domains..."
+    
     $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
     $telemetryDomains = @(
         "0.0.0.0 settings-win.data.microsoft.com",
+        "0.0.0.0 settings.data.microsoft.com",
         "0.0.0.0 browser.pipe.aria.microsoft.com",
         "0.0.0.0 dmd.metaservices.microsoft.com",
         "0.0.0.0 ris.api.iris.microsoft.com",
@@ -166,19 +207,20 @@ function Block-TelemetryHosts {
         "0.0.0.0 nw-umwatson.events.data.microsoft.com",
         "0.0.0.0 mobile.events.data.microsoft.com"
     )
+
     foreach ($domain in $telemetryDomains) {
-        Safe-Execute {
+        Safe-Execute -Code {
             $hostsContent = Get-Content -Path $hostsPath -ErrorAction SilentlyContinue
             if (-not ($hostsContent -like "*$domain*")) {
                 Add-Content -Path $hostsPath -Value $domain -ErrorAction SilentlyContinue
             }
-        } "Failed to block domain: $domain"
+        } -ErrorMessage "Failed to block domain: $domain" -Context "Hosts"
     }
 }
 
-# 4. Firewall Rules
 function Add-FirewallRules {
-    Write-Log "Adding firewall rules to block telemetry IPs..."
+    Write-Log "Configuring firewall rules..."
+    
     $telemetryIPs = @(
         "20.42.65.90", "20.234.120.54", "104.208.16.91", "20.118.138.130", "65.52.100.9", "20.189.173.16",
         "20.42.65.92", "20.54.232.160", "20.44.10.123", "104.208.16.93", "52.168.117.173", "20.209.184.65",
@@ -188,35 +230,53 @@ function Add-FirewallRules {
         "52.245.136.44", "20.192.184.194", "104.211.81.232", "40.79.189.59", "40.79.197.35", "52.32.227.103",
         "20.50.88.235", "13.107.5.88", "13.89.179.12", "20.42.73.26"
     )
+
     foreach ($ip in $telemetryIPs) {
-        Safe-Execute {
+        Safe-Execute -Code {
             if ($ip -match '^\d{1,3}(\.\d{1,3}){3}$') {
-                New-NetFirewallRule -DisplayName "Privacy-Blocker Telemetry - $ip" -Direction Outbound -RemoteAddress $ip -Action Block -Profile Any -Enabled True
-                New-NetFirewallRule -DisplayName "Privacy-Blocker Telemetry (Inbound) - $ip" -Direction Inbound -RemoteAddress $ip -Action Block -Profile Any -Enabled True
-            } else {
-                Write-Log "Invalid IP address: $ip"
+                New-NetFirewallRule -DisplayName "$SCRIPT_NAME Block $ip" `
+                    -Direction Outbound `
+                    -RemoteAddress $ip `
+                    -Action Block `
+                    -Profile Any `
+                    -Enabled True
             }
-        } "Failed to add firewall rule for IP: $ip"
+        } -ErrorMessage "Failed to add firewall rule for IP: $ip" -Context "Firewall"
     }
-    Safe-Execute { Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow } "Failed to harden firewall settings"
+    
+    Safe-Execute -Code {
+        Set-NetFirewallProfile -Profile Domain,Public,Private `
+            -DefaultInboundAction Block `
+            -DefaultOutboundAction Allow
+    } -ErrorMessage "Failed to configure firewall profiles" -Context "Firewall"
 }
 
-# 5. Set Secure DNS (DNS Leak Protection)
 function Set-SecureDNS {
     Write-Log "Configuring secure DNS settings..."
-    $dnsServers = @("9.9.9.9", "149.112.112.112")
+    
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.HardwareInterface }
+    
     foreach ($adapter in $adapters) {
-        Safe-Execute {
-            Set-DnsClientServerAddress -InterfaceIndex $adapter.IfIndex -ServerAddresses $dnsServers
-            Write-Log "DNS for adapter '$($adapter.Name)' set to: $($dnsServers -join ', ')"
-        } "Failed to set DNS for adapter: $($adapter.Name)"
+        Safe-Execute -Code {
+            Set-DnsClientServerAddress -InterfaceIndex $adapter.IfIndex -ServerAddresses $SECURE_DNS_SERVERS
+        } -ErrorMessage "Failed to configure DNS for adapter: $($adapter.Name)" -Context "DNS"
     }
 }
+#endregion
 
-# Main Execution
-Apply-RegistrySettings
-Disable-Services
-Block-TelemetryHosts
-Add-FirewallRules
-Set-SecureDNS
+#region Main Execution
+try {
+    Write-Log "Starting privacy hardening process..."
+    
+    Apply-RegistrySettings
+    Disable-Services
+    Block-TelemetryHosts
+    Add-FirewallRules
+    Set-SecureDNS
+    
+    Write-Log "Privacy hardening completed successfully."
+} catch {
+    Write-Log "Fatal error during execution: $($_.Exception.Message)" -level "ERROR"
+    exit 1
+}
+#endregion
