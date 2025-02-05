@@ -23,7 +23,7 @@ powershell Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 
 3. **Run the script:**
 ```
-irm “https://raw.githubusercontent.com/oqullcan/Privacy-Blocker/main/PrivacyBlocker.ps1” | iex
+irm “https://raw.githubusercontent.com/oqullcan/Privacy-Blocker/refs/heads/main/Privacy-Blocker.ps1” | iex
 ```
 
 ## Usage
