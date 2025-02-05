@@ -112,6 +112,7 @@ function Block-TelemetryHosts {
     $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
     $telemetryDomains = @(
         "0.0.0.0 settings-win.data.microsoft.com",
+        "0.0.0.0 settings.data.microsoft.com",
         "0.0.0.0 browser.pipe.aria.microsoft.com",
         "0.0.0.0 dmd.metaservices.microsoft.com",
         "0.0.0.0 ris.api.iris.microsoft.com",
@@ -165,7 +166,10 @@ function Block-TelemetryHosts {
         "0.0.0.0 az667904.vo.msecnd.net",
         "0.0.0.0 scus-breeziest-in.cloudapp.net",
         "0.0.0.0 nw-umwatson.events.data.microsoft.com",
-        "0.0.0.0 mobile.events.data.microsoft.com"
+        "0.0.0.0 mobile.events.data.microsoft.com",
+        "0.0.0.0 oca.telemetry.microsoft.com",
+        "0.0.0.0 ca.microsoft.com",
+        "0.0.0.0 kmwatsonc.events.data.microsoft.com"
     )
     foreach ($domain in $telemetryDomains) {
         Safe-Execute {
