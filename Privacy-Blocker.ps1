@@ -120,7 +120,7 @@ function Apply-RegistrySettings {
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"; Name = "LetAppsRunInBackground"; Value = 2 },
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"; Name = "LetAppsAccessLocation"; Value = 2 },
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"; Name = "LetAppsAccessCamera"; Value = 2 },
-        # @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"; Name = "LetAppsAccessMicrophone"; Value = 1 },
+        @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"; Name = "LetAppsAccessMicrophone"; Value = 1 },
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"; Name = "LetAppsAccessNotifications"; Value = 2 },
         @{ Path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"; Name = "LetAppsAccessAccountInfo"; Value = 2 },
         
@@ -177,35 +177,52 @@ function Block-TelemetryHosts {
     Write-Log "Updating hosts file to block telemetry domains..."
     
     $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
+    
+    # Grouped telemetry domains for better readability
     $telemetryDomains = @(
+        # Microsoft settings and data collection
         "0.0.0.0 settings-win.data.microsoft.com",
         "0.0.0.0 settings.data.microsoft.com",
+        "0.0.0.0 settings-sandbox.data.microsoft.com",
+        
+        # Browser and telemetry related
         "0.0.0.0 browser.pipe.aria.microsoft.com",
+        "0.0.0.0 browser.events.data.microsoft.com",
+        
+        # Microsoft services and APIs
         "0.0.0.0 dmd.metaservices.microsoft.com",
         "0.0.0.0 ris.api.iris.microsoft.com",
+        "0.0.0.0 redir.metaservices.microsoft.com",
+        
+        # Teams and events
         "0.0.0.0 teams.events.data.microsoft.com",
-        "0.0.0.0 telecommand.telemetry.microsoft.com",
-        "0.0.0.0 telemetry.microsoft.com",
-        "0.0.0.0 vortex-win.data.microsoft.com",
-        "0.0.0.0 watson.events.data.microsoft.com",
-        "0.0.0.0 activity.windows.com",
-        "0.0.0.0 browser.events.data.microsoft.com",
-        "0.0.0.0 outlookads.live.com",
-        "0.0.0.0 watson.microsoft.com",
-        "0.0.0.0 watson.telemetry.microsoft.com",
-        "0.0.0.0 umwatsonc.events.data.microsoft.com",
-        "0.0.0.0 ceuswatcab01.blob.core.windows.net",
-        "0.0.0.0 ceuswatcab02.blob.core.windows.net",
-        "0.0.0.0 eaus2watcab01.blob.core.windows.net",
-        "0.0.0.0 eaus2watcab02.blob.core.windows.net",
-        "0.0.0.0 weus2watcab01.blob.core.windows.net",
-        "0.0.0.0 weus2watcab02.blob.core.windows.net",
-        "0.0.0.0 events-sandbox.data.microsoft.com",
         "0.0.0.0 events.data.microsoft.com",
-        "0.0.0.0 v10.events.data.microsoft.com",
-        "0.0.0.0 v20.events.data.microsoft.com",
-        "0.0.0.0 v10c.events.data.microsoft.com",
+        "0.0.0.0 events-sandbox.data.microsoft.com",
+        
+        # Telemetry and monitoring
+        "0.0.0.0 telemetry.microsoft.com",
+        "0.0.0.0 telecommand.telemetry.microsoft.com",
+        "0.0.0.0 oca.telemetry.microsoft.com",
+        "0.0.0.0 sqm.telemetry.microsoft.com",
+        "0.0.0.0 watson.telemetry.microsoft.com",
+        "0.0.0.0 watson.ppe.telemetry.microsoft.com",
+        "0.0.0.0 telemetry.urs.microsoft.com",
+        
+        # Vortex related
+        "0.0.0.0 vortex-win.data.microsoft.com",
+        "0.0.0.0 vortex.data.microsoft.com",
+        "0.0.0.0 vortex-sandbox.data.microsoft.com",
         "0.0.0.0 v10.vortex-win.data.microsoft.com",
+        
+        # Watson related
+        "0.0.0.0 watson.events.data.microsoft.com",
+        "0.0.0.0 watson.microsoft.com",
+        "0.0.0.0 umwatsonc.events.data.microsoft.com",
+        "0.0.0.0 nw-umwatson.events.data.microsoft.com",
+        "0.0.0.0 survey.watson.microsoft.com",
+        "0.0.0.0 watson.live.com",
+        
+        # Regional endpoints
         "0.0.0.0 eu-v10.events.data.microsoft.com",
         "0.0.0.0 eu-v20.events.data.microsoft.com",
         "0.0.0.0 au.vortex-win.data.microsoft.com",
@@ -217,23 +234,57 @@ function Block-TelemetryHosts {
         "0.0.0.0 us-v20.events.data.microsoft.com",
         "0.0.0.0 us4-v20.events.data.microsoft.com",
         "0.0.0.0 us5-v20.events.data.microsoft.com",
-        "0.0.0.0 pipe.dev.trafficmanager.net",
         "0.0.0.0 in-v10.events.data.microsoft.com",
         "0.0.0.0 in-v20.events.data.microsoft.com",
         "0.0.0.0 jp-v10.events.data.microsoft.com",
         "0.0.0.0 jp-v20.events.data.microsoft.com",
+        
+        # Azure storage and services
+        "0.0.0.0 ceuswatcab01.blob.core.windows.net",
+        "0.0.0.0 ceuswatcab02.blob.core.windows.net",
+        "0.0.0.0 eaus2watcab01.blob.core.windows.net",
+        "0.0.0.0 eaus2watcab02.blob.core.windows.net",
+        "0.0.0.0 weus2watcab01.blob.core.windows.net",
+        "0.0.0.0 weus2watcab02.blob.core.windows.net",
+        "0.0.0.0 az667904.vo.msecnd.net",
+        "0.0.0.0 az361816.vo.msecnd.net",
+        
+        # Brave browser telemetry
         "0.0.0.0 p3a.brave.com",
         "0.0.0.0 p2a.brave.com",
         "0.0.0.0 p3a-json.brave.com",
         "0.0.0.0 p2a-json.brave.com",
         "0.0.0.0 cr.brave.com",
         "0.0.0.0 star-randsrv.bsg.brave.com",
+        
+        # Visual Studio and diagnostics
         "0.0.0.0 dc.services.visualstudio.com",
         "0.0.0.0 visualstudio-devdiv-c2s.msedge.net",
-        "0.0.0.0 az667904.vo.msecnd.net",
-        "0.0.0.0 scus-breeziest-in.cloudapp.net",
-        "0.0.0.0 nw-umwatson.events.data.microsoft.com",
-        "0.0.0.0 mobile.events.data.microsoft.com"
+        "0.0.0.0 diagnostics.support.microsoft.com",
+        
+        # Miscellaneous
+        "0.0.0.0 activity.windows.com",
+        "0.0.0.0 outlookads.live.com",
+        "0.0.0.0 mobile.events.data.microsoft.com",
+        "0.0.0.0 pipe.dev.trafficmanager.net",
+        "0.0.0.0 choice.microsoft.com",
+        "0.0.0.0 df.telemetry.microsoft.com",
+        "0.0.0.0 reports.wes.df.telemetry.microsoft.com",
+        "0.0.0.0 wes.df.telemetry.microsoft.com",
+        "0.0.0.0 services.wes.df.telemetry.microsoft.com",
+        "0.0.0.0 sqm.df.telemetry.microsoft.com",
+        "0.0.0.0 statsfe2.ws.microsoft.com",
+        "0.0.0.0 statsfe1.ws.microsoft.com",
+        "0.0.0.0 a-0001.a-msedge.net",
+        "0.0.0.0 pre.footprintpredict.com",
+        "0.0.0.0 i1.services.social.microsoft.com",
+        "0.0.0.0 feedback.windows.com",
+        "0.0.0.0 feedback.search.microsoft.com",
+        "0.0.0.0 rad.msn.com",
+        "0.0.0.0 preview.msn.com",
+        "0.0.0.0 dart.l.doubleclick.net",
+        "0.0.0.0 ads.msn.com",
+        "0.0.0.0 ssw.live.com"
     )
 
     foreach ($domain in $telemetryDomains) {
@@ -249,16 +300,49 @@ function Block-TelemetryHosts {
 function Add-FirewallRules {
     Write-Log "Configuring firewall rules..."
     
+    # Grouped IP addresses for better readability
     $telemetryIPs = @(
-        "20.42.65.90", "20.234.120.54", "104.208.16.91", "20.118.138.130", "65.52.100.9", "20.189.173.16",
-        "20.42.65.92", "20.54.232.160", "20.44.10.123", "104.208.16.93", "52.168.117.173", "20.209.184.65",
-        "20.60.241.65", "20.60.225.129", "20.209.154.161", "20.150.87.132", "20.50.201.194", "52.168.112.67",
-        "13.70.79.200", "20.189.173.27", "52.168.117.171", "13.89.178.26", "20.50.201.195", "13.69.239.78",
-        "104.46.162.225", "40.79.173.41", "51.104.15.252", "20.189.173.8", "20.189.173.14", "20.140.200.208",
-        "52.245.136.44", "20.192.184.194", "104.211.81.232", "40.79.189.59", "40.79.197.35", "52.32.227.103",
-        "20.50.88.235", "13.107.5.88", "13.89.179.12", "20.42.73.26"
+        # Group 1
+        "20.42.65.90", "20.234.120.54", "104.208.16.91", "20.118.138.130", 
+        "65.52.100.9", "20.189.173.16", "20.42.65.92", "20.54.232.160",
+        "20.44.10.123", "104.208.16.93", "52.168.117.173", "20.209.184.65",
+        "20.60.241.65", "20.60.225.129", "20.209.154.161", "20.150.87.132",
+        "20.50.201.194", "52.168.112.67", "13.70.79.200", "20.189.173.27",
+        "52.168.117.171", "13.89.178.26", "20.50.201.195", "13.69.239.78",
+        
+        # Group 2
+        "104.46.162.225", "40.79.173.41", "51.104.15.252", "20.189.173.8",
+        "20.189.173.14", "20.140.200.208", "52.245.136.44", "20.192.184.194",
+        "104.211.81.232", "40.79.189.59", "40.79.197.35", "52.32.227.103",
+        "20.50.88.235", "13.107.5.88", "13.89.179.12", "20.42.73.26",
+        
+        # Group 3
+        "191.232.139.254", "65.55.252.92", "65.55.252.63", "65.55.252.93",
+        "65.55.252.43", "65.52.108.29", "194.44.4.200", "194.44.4.208",
+        "157.56.91.77", "65.52.100.7", "65.52.100.91", "65.52.100.93",
+        "65.52.100.92", "65.52.100.94", "65.52.100.9", "65.52.100.11",
+        "168.63.108.233", "157.56.74.250", "111.221.29.177", "64.4.54.32",
+        
+        # Group 4
+        "207.68.166.254", "207.46.223.94", "65.55.252.71", "64.4.54.22",
+        "131.107.113.238", "23.99.10.11", "68.232.34.200", "204.79.197.200",
+        "64.4.54.22", "157.56.77.139", "134.170.58.121", "134.170.58.123",
+        "134.170.53.29", "66.119.144.190", "134.170.58.189", "134.170.58.118",
+        
+        # Group 5
+        "134.170.53.30", "134.170.51.190", "157.56.121.89", "131.107.113.238",
+        "134.170.115.60", "204.79.197.200", "104.82.22.249", "134.170.185.70",
+        "64.4.6.100", "65.55.39.10", "157.55.129.21", "207.46.194.25",
+        "23.102.21.4", "173.194.113.220", "173.194.113.219", "216.58.209.166",
+        
+        # Group 6
+        "157.56.91.82", "157.56.23.91", "104.82.14.146", "207.123.56.252",
+        "185.13.160.61", "8.254.209.254", "198.78.208.254", "185.13.160.61",
+        "185.13.160.61", "8.254.209.254", "207.123.56.252", "68.232.34.200",
+        "65.55.252.63", "207.46.101.29", "65.55.108.23", "23.218.212.69"
     )
 
+    # Process each IP address
     foreach ($ip in $telemetryIPs) {
         Safe-Execute -Code {
             if ($ip -match '^\d{1,3}(\.\d{1,3}){3}$') {
@@ -272,6 +356,7 @@ function Add-FirewallRules {
         } -ErrorMessage "Failed to add firewall rule for IP: $ip" -Context "Firewall"
     }
     
+    # Configure firewall profiles
     Safe-Execute -Code {
         $null = Set-NetFirewallProfile -Profile Domain,Public,Private `
             -DefaultInboundAction Block `
