@@ -6,6 +6,10 @@
     Requirements: PowerShell 5.1+ with Administrative Privileges
 #>
 
+<#
+In the script there are settings that repeat themselves or are invalid ip/hosts. over time the content will be cleaner. i should get some rest...
+#>
+
 #region Configuration Constants
 $SCRIPT_NAME = "Privacy-Blocker"
 $LOG_PREFIX = "[$SCRIPT_NAME]"
