@@ -16,8 +16,8 @@
 The **Privacy Hardening Script** is a PowerShell script designed to enhance the privacy and security of Windows systems. It implements a series of configurations aimed at minimizing data collection by disabling telemetry, managing services, and configuring secure DNS settings. This script is particularly useful for users who are concerned about their privacy and want to take proactive measures to protect their data.
 
 ## Features
-- **Disable Non-Essential Services**: Stops and disables services that may collect user data.
 - **Registry Settings**: Applies various registry settings to limit telemetry and data collection.
+- **Disable Non-Essential Services**: Stops and disables services that may collect user data.
 - **Hosts File Update**: Blocks telemetry domains by updating the hosts file.
 - **Firewall Rules**: Configures firewall rules to block known telemetry IP addresses.
 - **Secure DNS Configuration**: Sets secure DNS settings using Quad9 and DNS over HTTPS (DoH).
@@ -67,8 +67,8 @@ The script contains several key functions, each responsible for a specific aspec
 - **Description**: Configures firewall rules to block known telemetry IP addresses.
 - **Example IPs Blocked**:
   - `65.52.100.91`
-  - `65.52.100.93`
   - `65.52.100.92`
+  - `65.52.100.93`
 
 ### 5. Set-SecureDNS
 - **Description**: Configures secure DNS settings using Quad9 and DNS over HTTPS (DoH).
