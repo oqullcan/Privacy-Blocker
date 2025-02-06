@@ -83,6 +83,7 @@ The script contains several key functions, each responsible for a specific aspec
 The script can be customized by modifying the following variables at the beginning of the script:
 - `$SCRIPT_NAME`: The name of the script used in logging.
 - `$SECURE_DNS_SERVERS`: The DNS servers to be used for secure DNS settings.
+- You can check or add ip/hosts with the `nslookup` command from the terminal.
 
 ## Logging
 The script includes a logging mechanism that records actions taken and any errors encountered during execution. Logs are output to the console and can be redirected to a file if needed.
@@ -101,5 +102,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Acknowledgments
 - Special thanks to the Security Engineering Team for their contributions and support in developing this script.
 - Inspired by community efforts to enhance user privacy and security on Windows systems.
-
-ty!
