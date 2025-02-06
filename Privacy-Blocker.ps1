@@ -223,9 +223,13 @@ function Disable-Services {
     )
 
     foreach ($task in $scheduledTasksToDisable) {
-        Safe-Execute -Code {
-            schtasks /Change /TN $task /DISABLE
-        } -ErrorMessage "Failed to disable scheduled task: $task" -Context "Scheduled Task"
+        # Check if the scheduled task exists
+        $taskExists = schtasks /query /TN $task 2>$null
+        if ($taskExists) {
+            Safe-Execute -Code {
+                schtasks /Change /TN $task /DISABLE
+            } -ErrorMessage "Failed to disable scheduled task: $task" -Context "Scheduled Task"
+        }
     }
     
     Write-Log "Service and scheduled task configuration completed."
