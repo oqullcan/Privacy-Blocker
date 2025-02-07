@@ -34,6 +34,7 @@ To run the script, follow these steps:
 1. Open PowerShell as an Administrator.
 2. Navigate to the directory where the script is located.
 3. Execute the script:
+
    ```powershell
    irm “https://raw.githubusercontent.com/oqullcan/Privacy-Blocker/refs/heads/main/Privacy-Blocker.ps1” | iex
    ```
